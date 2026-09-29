@@ -18,12 +18,15 @@
 #include "main.h"
 #include "dac60508_master.h"
 #include "dac60508_slave.h"
+#include "stm32c5xx_ll_cordic.h"
 #include <math.h>
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
-#define FIBONACCI_CALIBRATION_ITERATIONS 100000U
-#define TRIG_ITERATIONS 1000U
+#define FIBONACCI_CALIBRATION_ITERATIONS 1000U
+#define TRIG_ITERATIONS 10U
+#define CORDIC_PI 3.14159265358979323846
+#define CORDIC_Q31_SCALE 2147483648.0
 
 /* Keep the two Fibonacci loops identical; this loop has no flash calls. */
 #define FIBONACCI_WORK_BODY(iterations, sink)           \
@@ -56,22 +59,76 @@
     (sink) = sum;                                                  \
   } while (0)
 
+/* Use the same angles as TRIG_WORK_BODY. CORDIC PHASE takes x then y. */
+#define CORDIC_TRIG_WORK_BODY(iterations, sink)                                  \
+  do                                                                           \
+  {                                                                            \
+    const double base = (double)((iterations) & 0xFFFFU) / 65536.0;             \
+    double sum = 0.0;                                                            \
+    for (uint32_t trig_index = 0U; trig_index < TRIG_ITERATIONS; ++trig_index) \
+    {                                                                          \
+      volatile double x = base + (double)trig_index * 0.001;                   \
+      const int32_t sine_angle = (int32_t)(x * (CORDIC_Q31_SCALE / CORDIC_PI)); \
+      const int32_t cosine_angle =                                             \
+          (int32_t)((x + 0.25) * (CORDIC_Q31_SCALE / CORDIC_PI));                \
+      LL_CORDIC_Config(CORDIC, LL_CORDIC_FUNCTION_SINE,                         \
+                       LL_CORDIC_PRECISION_6_CYCLE, LL_CORDIC_SCALING_FACTOR_0, \
+                       LL_CORDIC_NBWRITE_2, LL_CORDIC_NBREAD_1,                \
+                       LL_CORDIC_INWIDTH_32_BIT, LL_CORDIC_OUTWIDTH_32_BIT);  \
+      LL_CORDIC_WriteData(CORDIC, (uint32_t)sine_angle);                        \
+      LL_CORDIC_WriteData(CORDIC, 0x7FFFFFFFU); /* Q1.31 modulus ~1 */        \
+      const int32_t sine_q31 = (int32_t)LL_CORDIC_ReadData(CORDIC);             \
+      volatile double sine = (double)sine_q31 / CORDIC_Q31_SCALE;               \
+      LL_CORDIC_Config(CORDIC, LL_CORDIC_FUNCTION_COSINE,                       \
+                       LL_CORDIC_PRECISION_6_CYCLE, LL_CORDIC_SCALING_FACTOR_0, \
+                       LL_CORDIC_NBWRITE_2, LL_CORDIC_NBREAD_1,                \
+                       LL_CORDIC_INWIDTH_32_BIT, LL_CORDIC_OUTWIDTH_32_BIT);  \
+      LL_CORDIC_WriteData(CORDIC, (uint32_t)cosine_angle);                      \
+      LL_CORDIC_WriteData(CORDIC, 0x7FFFFFFFU);                                 \
+      const int32_t cosine_q31 = (int32_t)LL_CORDIC_ReadData(CORDIC);           \
+      volatile double cosine = (double)cosine_q31 / CORDIC_Q31_SCALE;           \
+      LL_CORDIC_Config(CORDIC, LL_CORDIC_FUNCTION_PHASE,                        \
+                       LL_CORDIC_PRECISION_6_CYCLE, LL_CORDIC_SCALING_FACTOR_0, \
+                       LL_CORDIC_NBWRITE_2, LL_CORDIC_NBREAD_1,                \
+                       LL_CORDIC_INWIDTH_32_BIT, LL_CORDIC_OUTWIDTH_32_BIT);  \
+      /* Halve both coordinates so the vector magnitude remains below 1. */   \
+      LL_CORDIC_WriteData(CORDIC,                                               \
+                          (uint32_t)(int32_t)(cosine * (CORDIC_Q31_SCALE / 2.0))); \
+      LL_CORDIC_WriteData(CORDIC,                                               \
+                          (uint32_t)(int32_t)(sine * (CORDIC_Q31_SCALE / 2.0)));   \
+      const int32_t phase_q31 = (int32_t)LL_CORDIC_ReadData(CORDIC);            \
+      const double phase = (double)phase_q31 * (CORDIC_PI / CORDIC_Q31_SCALE);  \
+      sum += phase;                                                              \
+    }                                                                          \
+    (sink) = sum;                                                               \
+  } while (0)
+
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 /* DWT cycles; at 144 MHz, 72,000,000 cycles correspond to 500 ms. */
 volatile uint32_t fibonacci_elapsed_cycles;
 volatile uint32_t fibonacci_sram2_elapsed_cycles;
+volatile uint32_t fibonacci_cordic_elapsed_cycles;
+volatile uint32_t fibonacci_sram2_cordic_elapsed_cycles;
 volatile uint32_t fibonacci_last_value;
 volatile uint32_t fibonacci_sram2_last_value;
+volatile uint32_t fibonacci_cordic_last_value;
+volatile uint32_t fibonacci_sram2_cordic_last_value;
 volatile double fibonacci_trig_result;
 volatile double fibonacci_sram2_trig_result;
+volatile double fibonacci_cordic_trig_result;
+volatile double fibonacci_sram2_cordic_trig_result;
 
 /* Private functions prototype -----------------------------------------------*/
-static void __attribute__((noinline, noclone, optimize("O3")))
+static void __attribute__((noinline, noclone/*, optimize("O3")*/))
 fibonacci_workload_500ms(uint32_t iterations);
-/* Optimize only the SRAM2 copy; the flash copy keeps the project's -O0. */
-static void __attribute__((noinline, noclone, used, section(".sram2_text"), optimize("O3")))
+/* Keep each SRAM2 benchmark in the section copied to the C-bus SRAM2 alias. */
+static void __attribute__((noinline, noclone, used, section(".sram2_text")/*, optimize("O3")*/))
 fibonacci_workload_500ms_sram2(uint32_t iterations);
+static void __attribute__((noinline, noclone/*, optimize("O3")*/))
+fibonacci_workload_500ms_cordic(uint32_t iterations);
+static void __attribute__((noinline, noclone, used, section(".sram2_text")/*, optimize("O3")*/))
+fibonacci_workload_500ms_sram2_cordic(uint32_t iterations);
 static void fibonacci_dma_tc(const void *context);
 
 static void fibonacci_workload_500ms(uint32_t iterations)
@@ -86,9 +143,21 @@ static void fibonacci_workload_500ms_sram2(uint32_t iterations)
   TRIG_WORK_BODY(iterations, fibonacci_sram2_trig_result);
 }
 
+static void fibonacci_workload_500ms_cordic(uint32_t iterations)
+{
+  FIBONACCI_WORK_BODY(iterations, fibonacci_cordic_last_value);
+  CORDIC_TRIG_WORK_BODY(iterations, fibonacci_cordic_trig_result);
+}
+
+static void fibonacci_workload_500ms_sram2_cordic(uint32_t iterations)
+{
+  FIBONACCI_WORK_BODY(iterations, fibonacci_sram2_cordic_last_value);
+  CORDIC_TRIG_WORK_BODY(iterations, fibonacci_sram2_cordic_trig_result);
+}
+
 static void fibonacci_dma_tc(const void *context)
 {
-  /* Both benchmarks run in the same DMA TC interrupt. */
+  /* All four benchmarks run in the same DMA TC interrupt. */
   const uint32_t iterations = *(const uint32_t *)context;
   uint32_t start_cycles = DWT->CYCCNT;
   fibonacci_workload_500ms(iterations);
@@ -97,6 +166,14 @@ static void fibonacci_dma_tc(const void *context)
   start_cycles = DWT->CYCCNT;
   fibonacci_workload_500ms_sram2(iterations);
   fibonacci_sram2_elapsed_cycles = (uint32_t)(DWT->CYCCNT - start_cycles);
+
+  start_cycles = DWT->CYCCNT;
+  fibonacci_workload_500ms_cordic(iterations);
+  fibonacci_cordic_elapsed_cycles = (uint32_t)(DWT->CYCCNT - start_cycles);
+
+  start_cycles = DWT->CYCCNT;
+  fibonacci_workload_500ms_sram2_cordic(iterations);
+  fibonacci_sram2_cordic_elapsed_cycles = (uint32_t)(DWT->CYCCNT - start_cycles);
 }
 
 /**
@@ -146,6 +223,8 @@ int main(void)
     }
     const uint32_t iterations = FIBONACCI_CALIBRATION_ITERATIONS * batches;
     fibonacci_workload_500ms_sram2(100U); /* Warm the SRAM2 code path once. */
+    fibonacci_workload_500ms_cordic(100U);
+    fibonacci_workload_500ms_sram2_cordic(100U);
     dac60508_master_set_dma_tc_callback(fibonacci_dma_tc, &iterations);
 
     uint16_t code = 0U;
