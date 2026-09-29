@@ -27,6 +27,7 @@ endif()
 
 # Enable all components in this package
 if(CMSIS_ENTIRE_generated_STMicroelectronics_stm32c5xx_hal_drivers_0_0_1)
+  list(APPEND CMSIS_COMPONENTS_LIST "Cvendor:STMicroelectronics#Cclass:Device#Cgroup:STM32CubeMX2 Config#Csub:CORDIC#Cversion:2.1.0#generated:true")
   list(APPEND CMSIS_COMPONENTS_LIST "Cvendor:STMicroelectronics#Cclass:Device#Cgroup:STM32CubeMX2 Config#Csub:CORE#Cversion:2.1.0#generated:true")
   list(APPEND CMSIS_COMPONENTS_LIST "Cvendor:STMicroelectronics#Cclass:Device#Cgroup:STM32CubeMX2 Config#Csub:CORTEX MPU#Cversion:2.1.0#generated:true")
   list(APPEND CMSIS_COMPONENTS_LIST "Cvendor:STMicroelectronics#Cclass:Device#Cgroup:STM32CubeMX2 Config#Csub:CORTEX NVIC#Cversion:2.1.0#generated:true")
@@ -990,6 +991,13 @@ set(generated_STMicroelectronics.stm32c5xx_hal_drivers.0.0.1_Use_mutex "1")
 message(DEBUG "CMSIS condition generated_STMicroelectronics.stm32c5xx_hal_drivers.0.0.1_Use_mutex enabled")
 
 # Files and components in this package
+if("Cvendor:STMicroelectronics#Cclass:Device#Cgroup:STM32CubeMX2 Config#Csub:CORDIC#Cversion:2.1.0#generated:true" IN_LIST CMSIS_COMPONENTS_LIST)  # TO BE DEFINED
+  message(DEBUG "Using component generated_Device_STM32CubeMX2_Config_CORDIC_2_1_0")
+  target_compile_definitions(generated_STMicroelectronics_stm32c5xx_hal_drivers_0_0_1 INTERFACE "$<${generated_STMicroelectronics.stm32c5xx_hal_drivers.0.0.1_HAL_CORE_DMA_Init_and_CORDIC}:-DCMSIS_USE_generated_Device_STM32CubeMX2_Config_CORDIC_2_1_0=1>")
+  target_include_directories(generated_STMicroelectronics_stm32c5xx_hal_drivers_0_0_1 INTERFACE "$<${generated_STMicroelectronics.stm32c5xx_hal_drivers.0.0.1_HAL_CORE_DMA_Init_and_CORDIC}:${CMAKE_CURRENT_LIST_DIR}/.>")
+  target_sources(generated_STMicroelectronics_stm32c5xx_hal_drivers_0_0_1 INTERFACE "$<${generated_STMicroelectronics.stm32c5xx_hal_drivers.0.0.1_HAL_CORE_DMA_Init_and_CORDIC}:${CMAKE_CURRENT_LIST_DIR}/mx_cordic.c>")
+endif()
+
 if("Cvendor:STMicroelectronics#Cclass:Device#Cgroup:STM32CubeMX2 Config#Csub:CORE#Cversion:2.1.0#generated:true" IN_LIST CMSIS_COMPONENTS_LIST)  # TO BE DEFINED
   message(DEBUG "Using component generated_Device_STM32CubeMX2_Config_CORE_2_1_0")
   target_compile_definitions(generated_STMicroelectronics_stm32c5xx_hal_drivers_0_0_1 INTERFACE "$<${generated_STMicroelectronics.stm32c5xx_hal_drivers.0.0.1_HAL_Generated_code}:-DCMSIS_USE_generated_Device_STM32CubeMX2_Config_CORE_2_1_0=1>")

@@ -26,6 +26,7 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32c5xx_ll_bus.h"
+#include "stm32c5xx_ll_cordic.h"
 #include "stm32c5xx_ll_dma.h"
 #include "stm32c5xx_ll_exti.h"
 #include "stm32c5xx_ll_flash.h"

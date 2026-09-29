@@ -27,6 +27,7 @@ extern "C" {
 /* Includes ------------------------------------------------------------------*/
 #include "mx_def.h"
 #include "stm32_hal.h"
+#include "mx_cordic.h"
 #include "mx_cortex_mpu.h"
 #include "mx_cortex_nvic.h"
 #include "mx_icache.h"
@@ -36,6 +37,12 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
+  /* *************************************************************
+    CORDIC (LL): No software label has been defined for this peripheral instance
+      in the STM32CubeMX2 configuration panel.
+      As a result, no aliases are generated for CMSIS instance
+    ************************************************************* */
+
   /* *************************************************************
     SPI1 (LL): No software label has been defined for this peripheral instance
       in the STM32CubeMX2 configuration panel.
@@ -57,6 +64,12 @@ extern "C" {
 /* Exported macros -----------------------------------------------------------*/
 
 /* ########### Aliases to initialization functions ########### */
+
+  /* *************************************************************
+    CORDIC: No software label has been defined for this peripheral instance
+      in the STM32CubeMX2 configuration panel.
+      As a result, no aliases are generated for mx_cordic_init
+    ************************************************************* */
 
   /* *************************************************************
     Cortex_MPU: No software label has been defined for this peripheral instance
@@ -97,6 +110,12 @@ extern "C" {
 /* ########################################################### */
 
 /* ########### Aliases to De-Initialization functions ########### */
+
+  /* *************************************************************
+    CORDIC: No software label has been defined for this peripheral instance
+      in the STM32CubeMX2 configuration panel.
+      As a result, no aliases are generated for mx_cordic_deinit
+    ************************************************************* */
 
   /* *************************************************************
     Cortex_MPU: No software label has been defined for this peripheral instance

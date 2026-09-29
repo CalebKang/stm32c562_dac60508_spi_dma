@@ -556,6 +556,13 @@
     </condition>
   </conditions>
   <components>
+    <component generator="stm32c5xx_hal_mx2codegen" Cclass="Device" Cgroup="STM32CubeMX2 Config" Csub="CORDIC"   Cversion="2.1.0" condition="HAL CORE DMA Init and CORDIC">
+      <description>TO BE DEFINED</description>
+      <files>
+        <file category="source" name="mx_cordic.c" />
+        <file category="header" name="mx_cordic.h" />
+      </files>
+    </component>
     <component generator="stm32c5xx_hal_mx2codegen" Cclass="Device" Cgroup="STM32CubeMX2 Config" Csub="CORE"   Cversion="2.1.0" condition="HAL Generated code">
       <description>TO BE DEFINED</description>
       <files>
